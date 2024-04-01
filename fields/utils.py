@@ -36,6 +36,7 @@ def get_poly_data(nc_data, attr='temperature'):
 def xyz2lonlatr(x, y, z, eps=1e-12):
     r = np.sqrt(x**2 + y**2 + z**2)
     lat = np.arccos(z / (r+eps)) * 180 / np.pi
+    lat[lat > 90] = (180 - lat)[lat > 90]
     lon = np.arctan(y / (x+eps)) * 180 / np.pi
     return lon, lat, r
 
@@ -48,50 +49,53 @@ def lonlatr2xyz(lon, lat, r):
     return x, y, z
 
 import bisect
-def voxelize(nc_data, attr, r1=3000, r2=6000, lon1=0, lon2=90, resolution=10, eps=1e-6):
+def voxelize(nc_data, attr, r1=3000, r2=6000, lon1=0, lon2=90, resolution=30, eps=1e-6):
     rmax = int(nc_data.r[-1])
-    image_data = np.zeros([2*rmax, 2*rmax, 2*rmax])
+    image_data = np.zeros([resolution, resolution, resolution])
     data = getattr(nc_data, attr)
-    for i, lat in enumerate(np.array(nc_data.lat)):
-        print(i, lat)
-        for j, lon in enumerate(np.array(nc_data.lon)):
-            for r in [r1, r2]:
-                k = bisect.bisect_left(nc_data.r, r)
-                x, y, z = lonlatr2xyz(lon, lat, r)
-                # print(x, y, z, lon, lat, r, i, j, k)
-                x = int(x + rmax)
-                y = int(y + rmax)
-                z = int(z + rmax)
-                value = data[i, k, j]
-                image_data[x, y, z] = value
+    # for i, lat in enumerate(np.array(nc_data.lat)):
+    #     print(i, lat)
+    #     for j, lon in enumerate(np.array(nc_data.lon)):
+    #         for r in [r1, r2]:
+    #             k = bisect.bisect_left(nc_data.r, r)
+    #             x, y, z = lonlatr2xyz(lon, lat, r)
+    #             # print(x, y, z, lon, lat, r, i, j, k)
+
+    #             x_ = bisect.bisect_left(X, x)
+    #             y_ = bisect.bisect_left(Y, y)
+    #             z_ = bisect.bisect_left(Z, z)
+    #             x = int(x + rmax)
+    #             y = int(y + rmax)
+    #             z = int(z + rmax)
+    #             value = data[i, k, j]
+    #             image_data[x_, y_, z_] = value
             
     
-    
-    
-    
-    # rmax = nc_data.r[-1]
 
     
-    # X = np.linspace(-rmax+eps, rmax-eps, resolution)
-    # Y = np.linspace(-rmax+eps, rmax-eps, resolution)
-    # Z = np.linspace(-rmax+eps, rmax-eps, resolution)
-    # meshgrid = np.meshgrid(X, Y, Z)
+    X = np.linspace(-rmax+eps, rmax-eps, resolution)
+    Y = np.linspace(-rmax+eps, rmax-eps, resolution)
+    Z = np.linspace(-rmax+eps, rmax-eps, resolution)
+    meshgrid = np.meshgrid(X, Y, Z)
+
+    Lon, Lat, R = xyz2lonlatr(meshgrid[0], meshgrid[1], meshgrid[2])
     # print(meshgrid.shape)
     # raise
 
-    # for i, x in enumerate(np.linspace(-rmax+eps, rmax-eps, resolution)):
-    #     print(i)
-    #     for j, y in enumerate(np.linspace(-rmax+eps, rmax-eps, resolution)):
-    #         for k, z in enumerate(np.linspace(-rmax+eps, rmax-eps, resolution)):
-    #             lon, lat, r = xyz2lonlatr(x, y, z)
-    #             r_id = bisect.bisect_right(data.r, r)
-    #             if r_id == len(data.r) - 1:
-    #                 lon_id = bisect.bisect_right(data.lon, lon)
-    #                 lat_id = bisect.bisect_right(data.lat, lat)
+    for i, x in enumerate(X):
+        print(i)
+        for j, y in enumerate(Y):
+            for k, z in enumerate(Z):
+                lon, lat, r = xyz2lonlatr(x, y, z)
+                r_id = bisect.bisect_left(data.r, r)
+                # print(r_id)
+                if r_id >= 180 and r_id < len(data.r):
+                    lon_id = bisect.bisect_left(data.lon, lon)
+                    lat_id = bisect.bisect_left(data.lat, lat)
                     
-    #                 # print(lon, r, lat)
-    #                 # print(lon_id, r_id, lat_id)
-    #                 image_data[i, j, k] = data.temperature[lon_id, r_id, lat_id]
+                    # print(lon, r, lat)
+                    # print(lon_id, r_id, lat_id)
+                    image_data[i, j, k] = data[lon_id, r_id, lat_id]
 
     vtk_image_data = vtk.vtkImageData()
     vtk_image_data.SetDimensions(resolution, resolution, resolution)
@@ -103,6 +107,57 @@ def voxelize(nc_data, attr, r1=3000, r2=6000, lon1=0, lon2=90, resolution=10, ep
     return vtk_image_data
 
 
+
+def voxelize(nc_data, attr, resolution=150):
+    eps = 1e-12
+
+    rmax = int(nc_data.r[-1])
+    image_data = np.zeros([resolution, resolution, resolution])
+    data = np.array(getattr(nc_data, attr))
+
+    X = np.linspace(-rmax+eps, rmax-eps, resolution)
+    Y = np.linspace(-rmax+eps, rmax-eps, resolution)
+    Z = np.linspace(-rmax+eps, rmax-eps, resolution)
+    meshgrid = np.meshgrid(X, Y, Z)
+
+    Lon, Lat, R = xyz2lonlatr(meshgrid[0], meshgrid[1], meshgrid[2])
+
+    lon_ids = np.searchsorted(nc_data.lon, Lon)
+    lat_ids = len(nc_data.lat) - np.searchsorted(-nc_data.lat, Lat)
+    r_ids = np.searchsorted(nc_data.r, R)
+
+    # for i in range(resolution):
+    #     print(i)
+    #     for j in range(resolution):
+    #         for k in range(resolution):
+    #             if r_ids[i, j, k] < 201 and 50 < lon_ids[i, j, k]  < 100:
+    #                 lon = lon_ids[i, j, k] 
+    #                 lat = lat_ids[i, j, k]
+    #                 r = r_ids[i, j, k]
+    #                 image_data[i, j, k] = data[lon, r, lat]
+    
+    ids = np.stack([lon_ids, r_ids, lat_ids], -1)
+    M = np.logical_and(ids[..., 1] < 201, ids[..., 0] > 45)
+    ids_flatten = ids[..., 0] * data.shape[1] * data.shape[2] + ids[..., 1] * data.shape[1] + ids[..., 2]
+    ids_flatten = ids_flatten.ravel()
+    M_flatten = M.ravel()
+    # image_data = image_data.ravel()
+    
+    image_data = data.ravel()[ids_flatten]
+    
+    image_data[np.logical_not(M_flatten)] = 0
+    # image_data = image_data.reshape(resolution, resolution, resolution)
+
+    vtk_image_data = vtk.vtkImageData()
+    vtk_image_data.SetDimensions(resolution, resolution, resolution)
+    vtk_data = numpy_support.numpy_to_vtk(
+            num_array=image_data, 
+            deep=True, array_type=vtk.VTK_FLOAT)
+    vtk_image_data.GetPointData().SetScalars(vtk_data)
+
+    return vtk_image_data
+
+    
 class Data:
 
     def __init__(self, filename):

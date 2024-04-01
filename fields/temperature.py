@@ -129,9 +129,9 @@ class PyQtTemperature(PyQtBase):
 
         # Create the Renderer
         self.ren = vtk.vtkRenderer()
-        # self.ren.AddVolume(self.field_temperature.volume)
+        self.ren.AddVolume(self.field_temperature.volume)
         # self.ren.AddActor(self.field_temperature.actor)
-        self.ren.AddActor(isosurface.actor)
+        # self.ren.AddActor(isosurface.actor)
         self.ren.AddActor(self.axes.actor)
         self.ren.AddActor2D(self.tf.bar.get())
         self.ren.ResetCamera()
