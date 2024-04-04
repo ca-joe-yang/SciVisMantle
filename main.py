@@ -7,7 +7,7 @@ import argparse
 
 from PyQt5.QtWidgets import QApplication
 
-from fields import PyQtTemperature
+from fields import *
 
 import xarray as xr
 import os
@@ -24,13 +24,13 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--data", type=str, default='data',
                         help="the directory to all sphericalxxx.nc")
-    # parser.add_argument("--camera", type=str,
-    #                     help="camera json")
+    parser.add_argument("--camera", type=str, default='camera.json',
+                        help="camera json")
     args = parser.parse_args()
     app = QApplication(sys.argv)
     data = load_data(args.data)
 
-    window = PyQtTemperature(data)
+    window = PyQtAnomaly(data)
     # window.load_camera(args.camera)
     window.run()
     sys.exit(app.exec_())

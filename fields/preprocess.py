@@ -13,16 +13,16 @@ def load_data(data_dir, num=None):
 
 def xyz2lonlatr(x, y, z, eps=1e-12):
     r = np.sqrt(x**2 + y**2 + z**2)
-    lat = np.arccos(z / (r+eps)) * 180 / np.pi
-    lat[lat > 90] = (lat - 180)[lat > 90]
-    lon = np.arctan(y / (x+eps)) * 180 / np.pi
+    lat = np.degrees(np.arcsin(y / r))
+    lon = np.degrees(np.arctan2(x, z+eps))
+    lon[lon < 0] = (360 + lon)[lon < 0]
     return lon, lat, r
 
 if __name__ == '__main__':
     nc_data = load_data('../data')[0]
     # poly_data = get_poly_data(nc_data, 'temperature')
 
-    resolution = 10
+    resolution = 100
     eps = 1e-12
     attr = 'temperature'
 
@@ -41,14 +41,3 @@ if __name__ == '__main__':
     lat_ids = len(nc_data.lat) - np.searchsorted(-nc_data.lat, Lat)
     r_ids = np.searchsorted(nc_data.r, R)
 
-    for i in range(resolution):
-        print(i)
-        for j in range(resolution):
-            for k in range(resolution):
-                print(i, j, k, lat_ids[i, j, k])
-                if r_ids[i, j, k] < 201:
-                    lon = lon_ids[i, j, k] 
-                    lat = lat_ids[i, j, k]
-                    r = r_ids[i, j, k]
-                    image_data[i, j, k] = data[lon, r, lat]
-    

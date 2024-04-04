@@ -35,18 +35,18 @@ def get_poly_data(nc_data, attr='temperature'):
 
 def xyz2lonlatr(x, y, z, eps=1e-12):
     r = np.sqrt(x**2 + y**2 + z**2)
-    lat = np.arccos(z / (r+eps)) * 180 / np.pi
-    lat[lat > 90] = (180 - lat)[lat > 90]
-    lon = np.arctan(y / (x+eps)) * 180 / np.pi
+    lat = np.degrees(np.arcsin(x / r))
+    lon = np.degrees(np.arctan2(z, y+eps))
+    lon[lon < 0] = (360 + lon)[lon < 0]
     return lon, lat, r
 
-def lonlatr2xyz(lon, lat, r):
-    lon = np.radians(lon)
-    lat = np.radians(lat)
-    x = r * np.cos(lat) * np.cos(lon)
-    y = r * np.cos(lat) * np.sin(lon) 
-    z = r * np.sin(lat)
-    return x, y, z
+# def lonlatr2xyz(lon, lat, r):
+#     lon = np.radians(lon)
+#     lat = np.radians(lat)
+#     x = r * np.cos(lat) * np.cos(lon)
+#     y = r * np.cos(lat) * np.sin(lon) 
+#     z = r * np.sin(lat)
+#     return x, y, z
 
 import bisect
 def voxelize(nc_data, attr, r1=3000, r2=6000, lon1=0, lon2=90, resolution=30, eps=1e-6):
@@ -108,12 +108,10 @@ def voxelize(nc_data, attr, r1=3000, r2=6000, lon1=0, lon2=90, resolution=30, ep
 
 
 
-def voxelize(nc_data, attr, resolution=150):
-    eps = 1e-12
-
+def voxelize(nc_data, attr, resolution=200, eps=1e-12):
     rmax = int(nc_data.r[-1])
     image_data = np.zeros([resolution, resolution, resolution])
-    data = np.array(getattr(nc_data, attr))
+    data = np.array(nc_data[attr])
 
     X = np.linspace(-rmax+eps, rmax-eps, resolution)
     Y = np.linspace(-rmax+eps, rmax-eps, resolution)
@@ -125,28 +123,23 @@ def voxelize(nc_data, attr, resolution=150):
     lon_ids = np.searchsorted(nc_data.lon, Lon)
     lat_ids = len(nc_data.lat) - np.searchsorted(-nc_data.lat, Lat)
     r_ids = np.searchsorted(nc_data.r, R)
-
-    # for i in range(resolution):
-    #     print(i)
-    #     for j in range(resolution):
-    #         for k in range(resolution):
-    #             if r_ids[i, j, k] < 201 and 50 < lon_ids[i, j, k]  < 100:
-    #                 lon = lon_ids[i, j, k] 
-    #                 lat = lat_ids[i, j, k]
-    #                 r = r_ids[i, j, k]
-    #                 image_data[i, j, k] = data[lon, r, lat]
     
-    ids = np.stack([lon_ids, r_ids, lat_ids], -1)
-    M = np.logical_and(ids[..., 1] < 201, ids[..., 0] > 45)
-    ids_flatten = ids[..., 0] * data.shape[1] * data.shape[2] + ids[..., 1] * data.shape[1] + ids[..., 2]
+    ids = np.stack([lat_ids, r_ids, lon_ids], -1)
+    
+    mask_ball = ids[..., 1] < 201
+    
+    
+    M1 = np.logical_and(ids[..., 2] < 315, ids[..., 2] > 45)
+    M2 = np.logical_or(meshgrid[0] < 0, M1)
+    # M = np.logical_and(M1, M2)
+    M = np.logical_and(mask_ball, M2)
+    ids_flatten = ids[..., 0] * data.shape[1] * data.shape[2] + np.clip(ids[..., 1], a_min=0, a_max=200) * data.shape[1] + ids[..., 2]
     ids_flatten = ids_flatten.ravel()
     M_flatten = M.ravel()
-    # image_data = image_data.ravel()
     
     image_data = data.ravel()[ids_flatten]
     
-    image_data[np.logical_not(M_flatten)] = 0
-    # image_data = image_data.reshape(resolution, resolution, resolution)
+    image_data[np.logical_not(M_flatten)] = -10000
 
     vtk_image_data = vtk.vtkImageData()
     vtk_image_data.SetDimensions(resolution, resolution, resolution)
@@ -179,3 +172,20 @@ def slider_setup(slider, val, bounds, interv):
     slider.setTickInterval(interv)
     slider.setTickPosition(QSlider.TicksAbove)
     slider.setRange(bounds[0], bounds[1])
+
+class ScalarField:
+
+    def __init__(self, data, tf):
+        self.property = vtk.vtkVolumeProperty()
+        self.property.ShadeOff()
+        self.property.SetColor(tf.ctf)
+        self.property.SetScalarOpacity(tf.otf)
+        self.property.SetInterpolationTypeToLinear()
+
+        self.mapper = vtk.vtkSmartVolumeMapper()
+        self.mapper.SetInputData(data)
+        self.mapper.SetBlendModeToComposite()
+
+        self.volume = vtk.vtkVolume()
+        self.volume.SetMapper(self.mapper)
+        self.volume.SetProperty(self.property)

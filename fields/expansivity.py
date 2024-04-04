@@ -8,11 +8,11 @@ from vtk.util import numpy_support
 import numpy as np
 from .utils import voxelize, get_poly_data, ScalarField
 
-class PyQtTemperature(PyQtBase):
+class PyQtExpansivity(PyQtBase):
 
     def __init__(self, 
         data,
-        output='temperature'
+        output='expansivity'
     ):
         super().__init__(output)
         self.ui = UiBase()
@@ -21,33 +21,27 @@ class PyQtTemperature(PyQtBase):
         # temperature = np.array(data[0].temperature)
         self.tf = TransferFunction(
             ctf_tuples=[
-                [0, 0.0, 1.0, 0.0],
-                [1801, 0.0, 0.0, 1.0],
-                [2350, 1.0, 1.0, 1.0],
-                [2700, 1.0, 0.0, 0.0],
-                [2801, 1.0, 1.0, 0.0]
+                [-4e-8, 0.0, 0.0, 1.0],
+                [1e-7, 1.0, 1.0, 1.0],
+                [8e-7, 1.0, 0.0, 0.0]
             ],
             otf_tuples=[
-                [0, 0.0],
-                [data_min, 0.1],
-                [data_med, 0.1],
-                [data_max, 0.1]
+                [-2, 0.0],
+                [-1, 0.1],
+                # [0, 0.1],
+                [1, 0.1],
+                # [1000, 0.1],
             ],
-            title="Temperature"
+            title="Expansivity"
         ) 
 
-        # vtk_poly_data = get_poly_data(data[0], 'temperature')
+        vtk_image_data = voxelize(data[0], 'thermal expansivity', resolution=100)
 
-        vtk_image_data = voxelize(data[0], 'temperature', resolution=500)
-
-        self.field_temperature = ScalarField(vtk_image_data, self.tf)
-
-        # isosurface = Isosurface(
-        #     vtk_poly_data, 2000, (1.0, 0.0, 0.0), 1.0)
+        self.field = ScalarField(vtk_image_data, self.tf)
 
         # Create the Renderer
         self.ren = vtk.vtkRenderer()
-        self.ren.AddVolume(self.field_temperature.volume)
+        self.ren.AddVolume(self.field.volume)
         # self.ren.AddActor(self.field_temperature.actor)
         # self.ren.AddActor(isosurface.actor)
         # self.ren.AddActor(self.axes.actor)
