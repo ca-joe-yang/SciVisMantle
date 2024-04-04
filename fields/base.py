@@ -2,7 +2,6 @@ from PyQt5.QtWidgets import \
     QWidget, QMainWindow, QGridLayout, \
     QPushButton, QTextEdit, QColorDialog
 from PyQt5.QtGui import QColor
-# import PyQt5.QtCore as QtCore
 from PyQt5.QtCore import Qt
 
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor

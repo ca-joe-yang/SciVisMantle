@@ -49,64 +49,6 @@ def xyz2lonlatr(x, y, z, eps=1e-12):
 #     return x, y, z
 
 import bisect
-def voxelize(nc_data, attr, r1=3000, r2=6000, lon1=0, lon2=90, resolution=30, eps=1e-6):
-    rmax = int(nc_data.r[-1])
-    image_data = np.zeros([resolution, resolution, resolution])
-    data = getattr(nc_data, attr)
-    # for i, lat in enumerate(np.array(nc_data.lat)):
-    #     print(i, lat)
-    #     for j, lon in enumerate(np.array(nc_data.lon)):
-    #         for r in [r1, r2]:
-    #             k = bisect.bisect_left(nc_data.r, r)
-    #             x, y, z = lonlatr2xyz(lon, lat, r)
-    #             # print(x, y, z, lon, lat, r, i, j, k)
-
-    #             x_ = bisect.bisect_left(X, x)
-    #             y_ = bisect.bisect_left(Y, y)
-    #             z_ = bisect.bisect_left(Z, z)
-    #             x = int(x + rmax)
-    #             y = int(y + rmax)
-    #             z = int(z + rmax)
-    #             value = data[i, k, j]
-    #             image_data[x_, y_, z_] = value
-            
-    
-
-    
-    X = np.linspace(-rmax+eps, rmax-eps, resolution)
-    Y = np.linspace(-rmax+eps, rmax-eps, resolution)
-    Z = np.linspace(-rmax+eps, rmax-eps, resolution)
-    meshgrid = np.meshgrid(X, Y, Z)
-
-    Lon, Lat, R = xyz2lonlatr(meshgrid[0], meshgrid[1], meshgrid[2])
-    # print(meshgrid.shape)
-    # raise
-
-    for i, x in enumerate(X):
-        print(i)
-        for j, y in enumerate(Y):
-            for k, z in enumerate(Z):
-                lon, lat, r = xyz2lonlatr(x, y, z)
-                r_id = bisect.bisect_left(data.r, r)
-                # print(r_id)
-                if r_id >= 180 and r_id < len(data.r):
-                    lon_id = bisect.bisect_left(data.lon, lon)
-                    lat_id = bisect.bisect_left(data.lat, lat)
-                    
-                    # print(lon, r, lat)
-                    # print(lon_id, r_id, lat_id)
-                    image_data[i, j, k] = data[lon_id, r_id, lat_id]
-
-    vtk_image_data = vtk.vtkImageData()
-    vtk_image_data.SetDimensions(resolution, resolution, resolution)
-    vtk_data = numpy_support.numpy_to_vtk(
-            num_array=image_data.ravel(), 
-            deep=True, array_type=vtk.VTK_FLOAT)
-    vtk_image_data.GetPointData().SetScalars(vtk_data)
-
-    return vtk_image_data
-
-
 
 def voxelize(nc_data, attr, resolution=200, eps=1e-12):
     rmax = int(nc_data.r[-1])

@@ -29,16 +29,14 @@ class PyQtTemperature(PyQtBase):
             ],
             otf_tuples=[
                 [0, 0.0],
-                [data_min, 0.1],
-                [data_med, 0.1],
-                [data_max, 0.1]
+                [300, 0.1],
             ],
             title="Temperature"
         ) 
 
         # vtk_poly_data = get_poly_data(data[0], 'temperature')
 
-        vtk_image_data = voxelize(data[0], 'temperature', resolution=500)
+        vtk_image_data = voxelize(data[0], 'temperature', resolution=100)
 
         self.field_temperature = ScalarField(vtk_image_data, self.tf)
 
