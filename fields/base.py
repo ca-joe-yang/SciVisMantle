@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import \
     QWidget, QMainWindow, QGridLayout, \
-    QPushButton, QTextEdit, QColorDialog
+    QPushButton, QTextEdit, QColorDialog, \
+    QSlider
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt
 
@@ -10,6 +11,8 @@ import vtk
 import sys
 from .vtk_helper import vtk_camera
 from .axes import Axes
+
+from .utils import slider_setup
 
 class UiBase: 
 
@@ -43,6 +46,15 @@ class UiBase:
         self.camera_info.setHtml("<div style='font-weight: bold'>Camera settings</div>")
         self.log = QTextEdit()
         self.log.setReadOnly(True)
+        
+        # Sliders    - May want to consider clipping based on phi and delta instead of x, y, z
+        self.slider_clipX = QSlider()
+        self.slider_clipY = QSlider()
+        # self.slider_clipZ = QSlider()
+        # Temp values for now.
+        slider_setup(self.slider_clipX, 0, [0,180], 1)
+        slider_setup(self.slider_clipY, 0, [180,360], 1)
+        # slider_setup(self.slider_clipZ, -6400, [-6400,6400], 4)
 
         # We are now going to position our widgets inside our
         # grid layout. The top left corner is (0,0)
@@ -71,6 +83,18 @@ class UiBase:
         self.gridlayout.addWidget(self.log, 3, 4, 1, 2)
         self.gridlayout.addWidget(self.push_quit, 6, 4, 1, 1)
 
+        # self.gridlayout.addWidget(self.push_toggle1, 7, 1, 1, 1)
+        # self.gridlayout.addWidget(self.push_toggle2, 8, 1, 1, 1)
+        # self.gridlayout.addWidget(self.push_toggle3, 9, 1, 1, 1)
+
+        self.gridlayout.addWidget(self.slider_clipX, 7, 2, 1, 1)
+        self.gridlayout.addWidget(self.slider_clipY, 8, 2, 1, 1)
+        # self.gridlayout.addWidget(self.slider_clipZ, 9, 2, 1, 1)
+
+        self.slider_clipX.setValue(int(45))
+        self.slider_clipY.setValue(int(315))
+        # self.ui.slider_clipZ.setValue(int(self.slider_clipZ))
+
         window.setCentralWidget(self.centralWidget)
 
         self.vtkWidget.GetRenderWindow().SetSize(*resolution)
@@ -91,10 +115,19 @@ class PyQtBase(QMainWindow):
         self.axes = Axes()
         self.show_axes = True
 
+        # Use constants instead of explicit definition
+        self.clipX = 45
+        self.clipY = 315
+        self.clipZ = 0
+
     def set_callback(self):
         self.ui.push_screenshot.clicked.connect(self.screenshot_callback)
         self.ui.push_camera.clicked.connect(self.camera_callback)
         self.ui.push_quit.clicked.connect(self.quit_callback)
+
+        self.ui.slider_clipX.valueChanged.connect(self.clipX_callback)
+        self.ui.slider_clipY.valueChanged.connect(self.clipY_callback)
+        # self.ui.slider_clipZ.valueChanged.connect(self.clipZ_callback)
 
     def run(self):
         self.show()
@@ -107,6 +140,24 @@ class PyQtBase(QMainWindow):
 
     def camera_callback(self):
         self._print_camera_settings()
+
+    def clipX_callback(self, val):
+        self.clipX = val
+        self.update_clipper()
+        self.ui.log.insertPlainText('clipTheta1 set to {}\n'.format(self.clipX))
+        self.Update()
+
+    def clipY_callback(self, val):
+        self.clipY = val
+        self.update_clipper()
+        self.ui.log.insertPlainText('clipTheta2 set to {}\n'.format(self.clipY))
+        self.Update()
+
+    def clipZ_callback(self, val):
+        self.clipZ = val
+        self.update_clipper()
+        self.ui.log.insertPlainText('clipZ set to {}\n'.format(self.clipZ))
+        self.Update()
 
     def quit_callback(self):
         sys.exit()
@@ -151,3 +202,8 @@ class PyQtBase(QMainWindow):
 
     def Update(self):
         self.ui.vtkWidget.GetRenderWindow().Render()
+
+        # Windows has a bug where the renderer doesn't update scalar data on the GPU.
+        # This artificially causes a timestamp update which causes that update.
+        # https://discourse.vtk.org/t/correct-way-to-update-a-vtkimagedata-and-refresh-the-render-window-renderwindow-render-not-working/6359/13
+        self.ui.vtkWidget.GetRenderWindow().GetInteractor().ProcessEvents()

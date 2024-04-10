@@ -12,7 +12,8 @@ class PyQtTemperature(PyQtBase):
 
     def __init__(self, 
         data,
-        output='temperature'
+        output='temperature',
+        resolution = 100
     ):
         super().__init__(output)
         self.ui = UiBase()
@@ -34,11 +35,14 @@ class PyQtTemperature(PyQtBase):
             title="Temperature"
         ) 
 
+        self.resolution = resolution
+        self.data = data[0]
+
         # vtk_poly_data = get_poly_data(data[0], 'temperature')
 
-        vtk_image_data = voxelize(data[0], 'temperature', resolution=100)
+        self.vtk_image_data = voxelize(self.data, 'temperature', resolution=self.resolution, clip_theta1=90)
 
-        self.field_temperature = ScalarField(vtk_image_data, self.tf)
+        self.field_temperature = ScalarField(self.vtk_image_data, self.tf)
 
         # isosurface = Isosurface(
         #     vtk_poly_data, 2000, (1.0, 0.0, 0.0), 1.0)
@@ -60,3 +64,13 @@ class PyQtTemperature(PyQtBase):
 
         self.Update()
         self.set_callback()
+
+    def update_clipper(self):
+        self.vtk_image_data = voxelize(self.data, 'temperature', resolution=self.resolution, 
+                                       clip_theta1=self.clipX, clip_theta2=self.clipY)
+
+        self.ren.RemoveVolume(self.field_temperature.volume)
+
+        self.field_temperature = ScalarField(self.vtk_image_data, self.tf)
+
+        self.ren.AddVolume(self.field_temperature.volume)

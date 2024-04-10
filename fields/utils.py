@@ -50,7 +50,7 @@ def xyz2lonlatr(x, y, z, eps=1e-12):
 
 import bisect
 
-def voxelize(nc_data, attr, resolution=200, eps=1e-12):
+def voxelize(nc_data, attr, resolution=200, eps=1e-12, clip_theta1 = 45, clip_theta2 = 315):
     rmax = int(nc_data.r[-1])
     image_data = np.zeros([resolution, resolution, resolution])
     data = np.array(nc_data[attr])
@@ -71,7 +71,7 @@ def voxelize(nc_data, attr, resolution=200, eps=1e-12):
     mask_ball = ids[..., 1] < 201
     
     
-    M1 = np.logical_and(ids[..., 2] < 315, ids[..., 2] > 45)
+    M1 = np.logical_and(ids[..., 2] < clip_theta2, ids[..., 2] > clip_theta1)
     M2 = np.logical_or(meshgrid[0] < 0, M1)
     # M = np.logical_and(M1, M2)
     M = np.logical_and(mask_ball, M2)
