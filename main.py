@@ -30,7 +30,7 @@ if __name__=="__main__":
     app = QApplication(sys.argv)
     data = load_data(args.data)
 
-    window = PyQtTemperature(data)
+    window = PyQtVelocity(data)
     # window.load_camera(args.camera)
     window.run()
     sys.exit(app.exec_())
