@@ -12,7 +12,8 @@ class PyQtConductivity(PyQtBase):
 
     def __init__(self, 
         data,
-        output='conductivity'
+        output='conductivity',
+        resolution = 500
     ):
         super().__init__(output)
         self.ui = UiBase()
@@ -35,7 +36,10 @@ class PyQtConductivity(PyQtBase):
             title="Conductivity"
         ) 
 
-        vtk_image_data = voxelize(data[0], 'thermal conductivity', resolution=500)
+        self.resolution = resolution
+        self.data = data[0]
+
+        vtk_image_data = voxelize(self.data, 'thermal conductivity', resolution=self.resolution)
 
         self.field = ScalarField(vtk_image_data, self.tf)
 
@@ -56,3 +60,13 @@ class PyQtConductivity(PyQtBase):
 
         self.Update()
         self.set_callback()
+
+    def update_clipper(self):
+        vtk_image_data = voxelize(self.data, 'thermal conductivity', resolution=self.resolution, 
+                                       clip_theta1=self.clipX, clip_theta2=self.clipY)
+
+        self.ren.RemoveVolume(self.field.volume)
+
+        self.field = ScalarField(vtk_image_data, self.tf)
+
+        self.ren.AddVolume(self.field.volume)

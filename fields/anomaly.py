@@ -12,7 +12,8 @@ class PyQtAnomaly(PyQtBase):
 
     def __init__(self, 
         data,
-        output='anomaly'
+        output='anomaly',
+        resolution = 100
     ):
         super().__init__(output)
         self.ui = UiBase()
@@ -35,7 +36,10 @@ class PyQtAnomaly(PyQtBase):
             title="anomaly"
         ) 
 
-        vtk_image_data = voxelize(data[0], 'temperature anomaly', resolution=100)
+        self.data = data[0]
+        self.resolution = resolution
+
+        vtk_image_data = voxelize(self.data, 'temperature anomaly', resolution=self.resolution)
 
         self.field = ScalarField(vtk_image_data, self.tf)
 
@@ -56,3 +60,13 @@ class PyQtAnomaly(PyQtBase):
 
         self.Update()
         self.set_callback()
+
+    def update_clipper(self):
+        vtk_image_data = voxelize(self.data, 'temperature anomaly', resolution=self.resolution, 
+                                       clip_theta1=self.clipX, clip_theta2=self.clipY)
+
+        self.ren.RemoveVolume(self.field.volume)
+
+        self.field = ScalarField(vtk_image_data, self.tf)
+
+        self.ren.AddVolume(self.field.volume)
