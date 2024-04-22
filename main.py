@@ -7,7 +7,8 @@ import argparse
 
 from PyQt5.QtWidgets import QApplication
 
-from fields import *
+from fields import PyQtTemperature, PyQtConductivity, PyQtExpansivity, \
+                   PyQtVelocity, PyQtAnomaly
 
 import xarray as xr
 import os
@@ -33,6 +34,7 @@ if __name__=="__main__":
     args = parser.parse_args()
     app = QApplication(sys.argv)
     data = load_data(args.data)
+    print(len(data))
 
     if args.resolution < 1:
         raise argparse.ArgumentTypeError('Resolution must be at least 1!')

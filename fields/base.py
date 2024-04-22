@@ -36,6 +36,8 @@ class UiBase:
         self.push_screenshot.setText('Save screenshot')
         self.push_camera = QPushButton()
         self.push_camera.setText('Save camera info')
+        self.push_start = QPushButton()
+        self.push_start.setText('Start')
         self.push_quit = QPushButton()
         self.push_quit.setText('Quit')
 
@@ -78,12 +80,12 @@ class UiBase:
         #     -----------------------------------------------------
 
         self.gridlayout.addWidget(self.push_screenshot, 0, 4, 1, 1)
-        self.gridlayout.addWidget(self.push_camera, 1, 4, 1, 1)
-        self.gridlayout.addWidget(self.camera_info, 2, 4, 1, 2)
-        self.gridlayout.addWidget(self.log, 3, 4, 1, 2)
+        self.gridlayout.addWidget(self.push_start, 1, 4, 1, 1)
+        self.gridlayout.addWidget(self.push_camera, 2, 4, 1, 1)
+        self.gridlayout.addWidget(self.camera_info, 3, 4, 1, 1)
+        self.gridlayout.addWidget(self.log, 4, 4, 1, 2)
         self.gridlayout.addWidget(self.push_quit, 6, 4, 1, 1)
 
-        # self.gridlayout.addWidget(self.push_toggle1, 7, 1, 1, 1)
         # self.gridlayout.addWidget(self.push_toggle2, 8, 1, 1, 1)
         # self.gridlayout.addWidget(self.push_toggle3, 9, 1, 1, 1)
 
@@ -124,6 +126,7 @@ class PyQtBase(QMainWindow):
         self.ui.push_screenshot.clicked.connect(self.screenshot_callback)
         self.ui.push_camera.clicked.connect(self.camera_callback)
         self.ui.push_quit.clicked.connect(self.quit_callback)
+        self.ui.push_start.clicked.connect(self.start_callback)
 
         self.ui.slider_clipX.valueChanged.connect(self.clipX_callback)
         self.ui.slider_clipY.valueChanged.connect(self.clipY_callback)
@@ -140,6 +143,22 @@ class PyQtBase(QMainWindow):
 
     def camera_callback(self):
         self._print_camera_settings()
+
+    def start_callback(self):
+        max_time_idx = 100
+        time_interval_ms = 100  # Time interval in milliseconds
+
+        # Define a function to update the scene with a sphere of increasing radius
+        def update_scene(obj, event):
+            if self.time_idx < max_time_idx:
+                # Create a sphere source
+                self.time_idx = self.time_idx + 1
+                self.update_clipper()
+                self.Update()
+        
+        # Set up the timer to trigger updates at regular intervals
+        self.iren.AddObserver('TimerEvent', update_scene)
+        timer_id = self.iren.CreateRepeatingTimer(time_interval_ms)        
 
     def clipX_callback(self, val):
         self.clipX = val

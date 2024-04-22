@@ -6,20 +6,20 @@ from .vtk_helper.vtk_io_helper import readVTK
 from .cmap import TransferFunction
 from vtk.util import numpy_support
 import numpy as np
-from .utils import voxelize, get_poly_data, ScalarField
+from .utils import voxelize, ScalarField
 
 class PyQtTemperature(PyQtBase):
 
     def __init__(self, 
         data,
         output='temperature',
-        resolution = 100
+        resolution = 100,
+        time_idx = 0
     ):
         super().__init__(output)
         self.ui = UiBase()
         self.ui.setupUi(self)
 
-        # temperature = np.array(data[0].temperature)
         self.tf = TransferFunction(
             ctf_tuples=[
                 [0, 0.0, 1.0, 0.0],
@@ -34,25 +34,19 @@ class PyQtTemperature(PyQtBase):
             ],
             title="Temperature"
         ) 
+        self.time_idx = time_idx
 
         self.resolution = resolution
-        self.data = data[0]
+        self.data = data
 
-        # vtk_poly_data = get_poly_data(data[0], 'temperature')
-
-        self.vtk_image_data = voxelize(self.data, 'temperature', resolution=self.resolution, clip_theta1=90)
+        self.vtk_image_data = voxelize(self.data[self.time_idx], 'temperature', resolution=self.resolution, clip_theta1=90)
 
         self.field_temperature = ScalarField(self.vtk_image_data, self.tf)
-
-        # isosurface = Isosurface(
-        #     vtk_poly_data, 2000, (1.0, 0.0, 0.0), 1.0)
 
         # Create the Renderer
         self.ren = vtk.vtkRenderer()
         self.ren.AddVolume(self.field_temperature.volume)
-        # self.ren.AddActor(self.field_temperature.actor)
-        # self.ren.AddActor(isosurface.actor)
-        # self.ren.AddActor(self.axes.actor)
+        self.ren.AddActor(self.axes.actor)
         self.ren.AddActor2D(self.tf.bar.get())
         self.ren.ResetCamera()
         self.ren.GradientBackgroundOn()  # Set gradient for background
@@ -66,7 +60,7 @@ class PyQtTemperature(PyQtBase):
         self.set_callback()
 
     def update_clipper(self):
-        self.vtk_image_data = voxelize(self.data, 'temperature', resolution=self.resolution, 
+        self.vtk_image_data = voxelize(self.data[self.time_idx], 'temperature', resolution=self.resolution, 
                                        clip_theta1=self.clipX, clip_theta2=self.clipY)
 
         self.ren.RemoveVolume(self.field_temperature.volume)
@@ -74,3 +68,4 @@ class PyQtTemperature(PyQtBase):
         self.field_temperature = ScalarField(self.vtk_image_data, self.tf)
 
         self.ren.AddVolume(self.field_temperature.volume)
+    

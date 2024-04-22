@@ -6,7 +6,7 @@ from .vtk_helper.vtk_io_helper import readVTK
 from .cmap import TransferFunction
 from vtk.util import numpy_support
 import numpy as np
-from .utils import voxelize, get_poly_data, ScalarField
+from .utils import voxelize, ScalarField
 
 class PyQtVelocity(PyQtBase):
 
@@ -38,8 +38,6 @@ class PyQtVelocity(PyQtBase):
 
         self.resolution = resolution
         self.data = data[0]
-
-        # vtk_poly_data = get_poly_data(data[0], 'temperature')
 
         self.vx_image_data = voxelize(self.data, 'vx', resolution=self.resolution, clip_theta1=90)
         self.vy_image_data = voxelize(self.data, 'vy', resolution=self.resolution, clip_theta1=90)

@@ -6,7 +6,7 @@ from .vtk_helper.vtk_io_helper import readVTK
 from .cmap import TransferFunction
 from vtk.util import numpy_support
 import numpy as np
-from .utils import voxelize, get_poly_data, ScalarField
+from .utils import voxelize, ScalarField
 
 class PyQtExpansivity(PyQtBase):
 

@@ -6,32 +6,32 @@ from .vtk_helper.vtk_io_helper import readVTK
 import numpy as np
 from vtk.util import numpy_support
 
-def get_poly_data(nc_data, attr='temperature'):
-    xx, yy, zz = np.meshgrid(
-        np.radians(nc_data.lon), 
-        np.radians(nc_data.lat), 
-        nc_data.r
-    )
+# def get_poly_data(nc_data, attr='temperature'):
+#     xx, yy, zz = np.meshgrid(
+#         np.radians(nc_data.lon), 
+#         np.radians(nc_data.lat), 
+#         nc_data.r
+#     )
     
-    data = np.array(getattr(nc_data, attr))
+#     data = np.array(getattr(nc_data, attr))
 
-    vtk_data = numpy_support.numpy_to_vtk(
-            num_array=data.ravel(), 
-            deep=True, array_type=vtk.VTK_FLOAT)
+#     vtk_data = numpy_support.numpy_to_vtk(
+#             num_array=data.ravel(), 
+#             deep=True, array_type=vtk.VTK_FLOAT)
         
-    X = zz * np.cos(yy) * np.cos(xx)
-    Y = zz * np.cos(yy) * np.sin(xx) 
-    Z = zz * np.sin(yy)
-    points = np.stack([X.ravel(), Y.ravel(), Z.ravel()], 1)
-    # Create a vtkPoints object and set the points from the NumPy array
-    vtk_points = vtk.vtkPoints()
-    vtk_points.SetData(numpy_support.numpy_to_vtk(points, deep=True))
+#     X = zz * np.cos(yy) * np.cos(xx)
+#     Y = zz * np.cos(yy) * np.sin(xx) 
+#     Z = zz * np.sin(yy)
+#     points = np.stack([X.ravel(), Y.ravel(), Z.ravel()], 1)
+#     # Create a vtkPoints object and set the points from the NumPy array
+#     vtk_points = vtk.vtkPoints()
+#     vtk_points.SetData(numpy_support.numpy_to_vtk(points, deep=True))
 
-    vtk_poly_data = vtk.vtkPolyData()
-    vtk_poly_data.SetPoints(vtk_points)
-    vtk_poly_data.GetPointData().SetScalars(vtk_data)
+#     vtk_poly_data = vtk.vtkPolyData()
+#     vtk_poly_data.SetPoints(vtk_points)
+#     vtk_poly_data.GetPointData().SetScalars(vtk_data)
     
-    return vtk_poly_data
+#     return vtk_poly_data
 
 def xyz2lonlatr(x, y, z, eps=1e-12):
     r = np.sqrt(x**2 + y**2 + z**2)

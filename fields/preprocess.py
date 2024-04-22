@@ -20,7 +20,6 @@ def xyz2lonlatr(x, y, z, eps=1e-12):
 
 if __name__ == '__main__':
     nc_data = load_data('../data')[0]
-    # poly_data = get_poly_data(nc_data, 'temperature')
 
     resolution = 100
     eps = 1e-12
