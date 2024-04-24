@@ -40,17 +40,20 @@ def xyz2lonlatr(x, y, z, eps=1e-12):
     lon[lon < 0] = (360 + lon)[lon < 0]
     return lon, lat, r
 
-# def lonlatr2xyz(lon, lat, r):
-#     lon = np.radians(lon)
-#     lat = np.radians(lat)
-#     x = r * np.cos(lat) * np.cos(lon)
-#     y = r * np.cos(lat) * np.sin(lon) 
-#     z = r * np.sin(lat)
-#     return x, y, z
+def lonlatr2xyz(lon, lat, r):
+    lon = np.radians(lon)
+    lat = np.radians(lat)
+    x = r * np.cos(lat) * np.cos(lon)
+    z = r * np.cos(lat) * np.sin(lon) 
+    y = r * np.sin(lat)
+    return x, y, z
 
 import bisect
 
-def voxelize(nc_data, attr, resolution=200, eps=1e-12, clip_theta1 = 45, clip_theta2 = 315):
+def voxelize(
+    nc_data, attr, resolution=200, eps=1e-12, 
+    clip_theta1 = 45, clip_theta2 = 315
+):
     rmax = int(nc_data.r[-1])
     image_data = np.zeros([resolution, resolution, resolution])
     data = np.array(nc_data[attr])
@@ -131,3 +134,10 @@ class ScalarField:
         self.volume = vtk.vtkVolume()
         self.volume.SetMapper(self.mapper)
         self.volume.SetProperty(self.property)
+
+if __name__ == '__main__':
+    x, y, z = 10, 20, 30
+    lon, lat, r = xyz2lonlatr(x, y, z)
+    print(lon, lat, r)
+    x, y, z = lonlatr2xyz(lon, lat, r)
+    print(x, y, z)

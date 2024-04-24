@@ -7,7 +7,7 @@ import argparse
 
 from PyQt5.QtWidgets import QApplication
 
-from fields import PyQtTemperature, PyQtConductivity, PyQtExpansivity, \
+from mantle import PyQtTemperature, PyQtConductivity, PyQtExpansivity, \
                    PyQtVelocity, PyQtAnomaly
 
 import xarray as xr

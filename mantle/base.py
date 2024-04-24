@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import \
     QWidget, QMainWindow, QGridLayout, \
     QPushButton, QTextEdit, QColorDialog, \
-    QSlider
+    QSlider, QLineEdit, QLabel
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt
 
@@ -13,6 +13,31 @@ from .vtk_helper import vtk_camera
 from .axes import Axes
 
 from .utils import slider_setup
+
+class MyQTextEdit:
+
+    def __init__(self, name, val, gridlayout, col_idx=0):
+        self.val = val
+
+        self.label = QLabel()
+        self.label.setText(f'{name}: ')
+
+        self.input = QLineEdit()
+        self.input.setText(str(self.val))
+
+        self.button = QPushButton()
+        self.button.setText('Update')
+
+        gridlayout.addWidget(self.label, col_idx, 1, 1, 1)
+        gridlayout.addWidget(self.input, col_idx, 2, 1, 1)
+        gridlayout.addWidget(self.button, col_idx, 3, 1, 1)
+
+    def set_callback(self, callback):
+        self.button.clicked.connect(callback)
+
+    def Update(self):
+        self.val = int(self.input.text())
+        return self.val
 
 class UiBase: 
 
@@ -41,6 +66,9 @@ class UiBase:
         self.push_quit = QPushButton()
         self.push_quit.setText('Quit')
 
+        self.push_clipY = QPushButton()
+        self.push_clipY.setText('Update')
+
         # Text windows
         self.camera_info = QTextEdit()
         self.camera_info.setReadOnly(True)
@@ -50,12 +78,13 @@ class UiBase:
         self.log.setReadOnly(True)
         
         # Sliders    - May want to consider clipping based on phi and delta instead of x, y, z
-        self.slider_clipX = QSlider()
-        self.slider_clipY = QSlider()
-        # self.slider_clipZ = QSlider()
+        # self.slider_clipX = QSlider()
+        # self.input_clipY = QLineEdit()
+
+        # self.slider_clipZ = QLineEdit()
         # Temp values for now.
-        slider_setup(self.slider_clipX, 0, [0,180], 1)
-        slider_setup(self.slider_clipY, 0, [180,360], 1)
+        # slider_setup(self.slider_clipX, 0, [0,180], 1)
+        # slider_setup(self.slider_clipY, 0, [180,360], 1)
         # slider_setup(self.slider_clipZ, -6400, [-6400,6400], 4)
 
         # We are now going to position our widgets inside our
@@ -74,9 +103,9 @@ class UiBase:
         #  5  |                                     | Text        |
         #  6  |                                     |    Window   |
         #     -----------------------------------------------------
-        #  7  | Label | Slider  | Label | Slider    | Push Button |
+        #  7  | Label | Value  | Update |     | Push Button |
         #     -----------------------------------------------------
-        #  8  | Label | Slider  |       |           |             |
+        #  8  | Label | Value  | Update |           |             |
         #     -----------------------------------------------------
 
         self.gridlayout.addWidget(self.push_screenshot, 0, 4, 1, 1)
@@ -86,15 +115,18 @@ class UiBase:
         self.gridlayout.addWidget(self.log, 4, 4, 1, 2)
         self.gridlayout.addWidget(self.push_quit, 6, 4, 1, 1)
 
-        # self.gridlayout.addWidget(self.push_toggle2, 8, 1, 1, 1)
+        
         # self.gridlayout.addWidget(self.push_toggle3, 9, 1, 1, 1)
 
-        self.gridlayout.addWidget(self.slider_clipX, 7, 2, 1, 1)
-        self.gridlayout.addWidget(self.slider_clipY, 8, 2, 1, 1)
+        # self.gridlayout.addWidget(self.slider_clipX, 7, 2, 1, 1)
+        # self.gridlayout.addWidget(self.input_clipY, 8, 1, 1, 1)
+        # self.gridlayout.addWidget(self.push_clipY, 8, 2, 1, 1)
         # self.gridlayout.addWidget(self.slider_clipZ, 9, 2, 1, 1)
 
-        self.slider_clipX.setValue(int(45))
-        self.slider_clipY.setValue(int(315))
+        # self.slider_clipX.setValue(int(45))
+        # self.input_clipY.setText(str(window.clipY))
+        self.q_clipX = MyQTextEdit('Clip X', window.clipX, self.gridlayout, 7)
+        self.q_clipY = MyQTextEdit('Clip Y', window.clipY, self.gridlayout, 8)
         # self.ui.slider_clipZ.setValue(int(self.slider_clipZ))
 
         window.setCentralWidget(self.centralWidget)
@@ -128,9 +160,13 @@ class PyQtBase(QMainWindow):
         self.ui.push_quit.clicked.connect(self.quit_callback)
         self.ui.push_start.clicked.connect(self.start_callback)
 
-        self.ui.slider_clipX.valueChanged.connect(self.clipX_callback)
-        self.ui.slider_clipY.valueChanged.connect(self.clipY_callback)
-        # self.ui.slider_clipZ.valueChanged.connect(self.clipZ_callback)
+        self.ui.q_clipX.set_callback(self.clipX_callback)
+        self.ui.q_clipY.set_callback(self.clipY_callback)
+
+        self.ren.GetActiveCamera().onModified(self.camera_update_callback)
+    
+    def camera_update_callback(self, camera):
+        print(camera.GetPosition(), camera.GetViewUp())
 
     def run(self):
         self.show()
@@ -145,7 +181,8 @@ class PyQtBase(QMainWindow):
         self._print_camera_settings()
 
     def start_callback(self):
-        max_time_idx = 100
+        self.time_idx = 0
+        max_time_idx = len(self.data) - 1
         time_interval_ms = 100  # Time interval in milliseconds
 
         # Define a function to update the scene with a sphere of increasing radius
@@ -161,22 +198,22 @@ class PyQtBase(QMainWindow):
         timer_id = self.iren.CreateRepeatingTimer(time_interval_ms)        
 
     def clipX_callback(self, val):
-        self.clipX = val
+        self.clipX = self.ui.q_clipX.Update()
         self.update_clipper()
         self.ui.log.insertPlainText('clipTheta1 set to {}\n'.format(self.clipX))
         self.Update()
 
-    def clipY_callback(self, val):
-        self.clipY = val
+    def clipY_callback(self):
+        self.clipY = self.ui.q_clipY.Update()
         self.update_clipper()
         self.ui.log.insertPlainText('clipTheta2 set to {}\n'.format(self.clipY))
         self.Update()
 
-    def clipZ_callback(self, val):
-        self.clipZ = val
-        self.update_clipper()
-        self.ui.log.insertPlainText('clipZ set to {}\n'.format(self.clipZ))
-        self.Update()
+    # def clipZ_callback(self, val):
+    #     self.clipZ = val
+    #     self.update_clipper()
+    #     self.ui.log.insertPlainText('clipZ set to {}\n'.format(self.clipZ))
+    #     self.Update()
 
     def quit_callback(self):
         sys.exit()
@@ -226,3 +263,6 @@ class PyQtBase(QMainWindow):
         # This artificially causes a timestamp update which causes that update.
         # https://discourse.vtk.org/t/correct-way-to-update-a-vtkimagedata-and-refresh-the-render-window-renderwindow-render-not-working/6359/13
         self.ui.vtkWidget.GetRenderWindow().GetInteractor().ProcessEvents()
+
+
+
