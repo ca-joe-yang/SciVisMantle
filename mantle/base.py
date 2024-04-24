@@ -163,11 +163,6 @@ class PyQtBase(QMainWindow):
         self.ui.q_clipX.set_callback(self.clipX_callback)
         self.ui.q_clipY.set_callback(self.clipY_callback)
 
-        self.ren.GetActiveCamera().onModified(self.camera_update_callback)
-    
-    def camera_update_callback(self, camera):
-        print(camera.GetPosition(), camera.GetViewUp())
-
     def run(self):
         self.show()
         self.setWindowState(Qt.WindowMaximized)  # Maximize the window

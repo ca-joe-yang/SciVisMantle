@@ -1,19 +1,4 @@
 import vtk
-import numpy as np
-
-# Custom camera to show only left side of the camera view
-class CustomCamera(vtk.vtkCamera):
-    def ViewTransformMatrix(self):
-        # Get the default view transform matrix
-        matrix = vtk.vtkMatrix4x4()
-        matrix.DeepCopy(super().ViewTransformMatrix())
-
-        # Modify the matrix to pan the camera to the left side
-        matrix.SetElement(0, 3, -1.0)  # Translate along the X-axis to the left side
-        matrix.SetElement(1, 3, 0.0)   # No translation along the Y-axis
-        matrix.SetElement(2, 3, 0.0)   # No translation along the Z-axis
-
-        return matrix
 
 # Create a cube source
 cube_source = vtk.vtkCubeSource()
@@ -35,24 +20,51 @@ renderer.AddActor(actor)
 
 # Create a render window
 render_window = vtk.vtkRenderWindow()
+render_window.AddRenderer(renderer)
 render_window.SetSize(800, 400)  # Set the size of the render window
 
-# Create a renderer for the left side
-renderer_left = vtk.vtkRenderer()
-# renderer_left.SetViewport(0.0, 0.0, 0.5, 1.0)  # Set viewport for the left half
-renderer_left.SetBackground(0.8, 0.8, 0.8)  # Set a light gray background for the left viewport
-renderer_left.AddActor(actor)  # Add the actor to the left renderer
+# Define the viewports for the left and right screens
+viewport_left = [0.0, 0.0, 0.5, 1.0]    # [xmin, ymin, xmax, ymax]
+viewport_right = [0.5, 0.0, 1.0, 1.0]   # [xmin, ymin, xmax, ymax]
 
-# Add the left renderer to the render window
-render_window.AddRenderer(renderer_left)
+# Create a camera
+camera = vtk.vtkCamera()
 
 # Create a render window interactor
 interactor = vtk.vtkRenderWindowInteractor()
 interactor.SetRenderWindow(render_window)
 
-# Create a custom camera for the left renderer
-custom_camera = CustomCamera()
-renderer_left.SetActiveCamera(custom_camera)
+# Function to synchronize the camera positions between the viewports
+def sync_cameras(obj, event):
+    # Get the camera position of the main renderer
+    camera_position = renderer.GetActiveCamera().GetPosition()
+    
+    # Set the camera positions for both viewports
+    renderer_left.GetActiveCamera().SetPosition(camera_position)
+    renderer_right.GetActiveCamera().SetPosition(camera_position)
+
+# Create renderers for left and right viewports
+renderer_left = vtk.vtkRenderer()
+renderer_left.SetViewport(viewport_left)
+renderer_left.SetBackground(0.2, 0.2, 0.2)  # Set a dark gray background for the left viewport
+renderer_left.AddActor(actor)  # Add the actor to the left renderer
+
+renderer_right = vtk.vtkRenderer()
+renderer_right.SetViewport(viewport_right)
+renderer_right.SetBackground(0.2, 0.2, 0.2)  # Set a dark gray background for the right viewport
+actor.GetProperty().SetColor(1, 0, 0)  # Set red color for the cube in the right viewport
+renderer_right.AddActor(actor)  # Add the actor to the right renderer
+
+# Add both renderers to the render window
+render_window.AddRenderer(renderer_left)
+render_window.AddRenderer(renderer_right)
+
+# Set the initial camera position
+renderer.GetActiveCamera().SetPosition(0, 0, 5)
+
+# Add observer to synchronize cameras
+interactor.AddObserver("TimerEvent", sync_cameras)
+timer_id = interactor.CreateRepeatingTimer(10)  # 10 milliseconds interval for synchronization
 
 # Start the interaction
 interactor.Start()
