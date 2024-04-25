@@ -29,6 +29,8 @@ if __name__=="__main__":
                                                             "expansivity", "velocity"], default="temperature", 
                                                             help = "Which field to visualize (default: temperature)")
     parser.add_argument("-r", "--resolution", type=int, default=100, help="Resolution of dataset voxelization")
+    parser.add_argument("--color_by_vector", action='store_true', default=False, 
+                        help="Colors velocity glyphs by vector orientation instead of by magnitude.")
     parser.add_argument("--camera", type=str, default='camera.json',
                         help="camera json")
     args = parser.parse_args()
@@ -48,7 +50,8 @@ if __name__=="__main__":
     elif args.field == "expansivity":
         window = PyQtExpansivity(data, resolution=args.resolution)
     elif args.field == "velocity":
-        window = PyQtVelocity(data, resolution=args.resolution)
+        color_mode = "magnitude" if args.color_by_vector is True else "orientation"
+        window = PyQtVelocity(data, resolution=args.resolution, color_mode=color_mode)
     else:
         raise argparse.ArgumentTypeError('Field has to be temperature, conductivity, anomaly, expansivity, or velocity!')
     # window.load_camera(args.camera)
