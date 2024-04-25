@@ -9,14 +9,14 @@ from .base import UiBase, PyQtBase
 from .arc import ClipBorders
 from .utils import ScalarField
 from .data import Voxelizer
-from .cmap import get_cmap
+from .cmap import get_tf, TransferFunction
 
 class PyQtScalar(PyQtBase):
 
     def __init__(self, 
-        data_dir, attr, name, tf, resolution
+        data_dir, resolution
     ):
-        super().__init__(name)
+        super().__init__()
         self.ui = UiBase()
         self.ui.setupUi(self)
 
@@ -32,20 +32,17 @@ class PyQtScalar(PyQtBase):
         self.voxelizer.check_all()
         self.vtk_image_data_l = vtk.vtkImageData()
         self.vtk_image_data_l.SetDimensions(self.resolution, self.resolution, self.resolution)
-        self.tf_l = get_cmap(self.attr_l)
-        self.tf_l.SetMode('left')
+        self.tf_l = TransferFunction(self.attr_l, 'left')
         self.field_l = ScalarField(self.vtk_image_data_l, self.tf_l)
 
         self.vtk_image_data_r = vtk.vtkImageData()
         self.vtk_image_data_r.SetDimensions(self.resolution, self.resolution, self.resolution)
-        self.tf_r = get_cmap(self.attr_r)
+        self.tf_r = TransferFunction(self.attr_r, 'right')
         self.field_r = ScalarField(self.vtk_image_data_r, self.tf_r)
 
         self.time_idx = 0
 
         self.resolution = resolution
-        self.attr = attr
-        self.tf = tf
 
         # Create the Renderer
         self.ren = vtk.vtkRenderer()
@@ -94,5 +91,9 @@ class PyQtScalar(PyQtBase):
     def update_clipper(self):
         self.voxelizer.build_clip_mask(self.clipX, self.clipY)
         self.borders.Update(self.clipX, self.clipY)
+
+        self.ren.AddActor2D(self.tf_l.bar.get())
+        self.ren.AddActor2D(self.tf_r.bar.get())
+
         self.UpdateData()
         

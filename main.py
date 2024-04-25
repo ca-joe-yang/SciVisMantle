@@ -7,10 +7,9 @@ import argparse
 
 from PyQt5.QtWidgets import QApplication
 
-from mantle import PyQtTemperature, PyQtConductivity, PyQtExpansivity, \
-                   PyQtVelocity, PyQtAnomaly
+from mantle import PyQtScalar, PyQtVelocity
 
-# from mantle.data import load_data
+from mantle.data import load_data
     
 if __name__=="__main__":
     # -d[--data] <DATA_DIRECTORY>
@@ -25,24 +24,23 @@ if __name__=="__main__":
                         help="camera json")
     args = parser.parse_args()
     app = QApplication(sys.argv)
-    # data = load_data(args.data)[:20]
+    data = load_data(args.data)[:20]
     # print(len(data))
 
     if args.resolution < 1:
         raise argparse.ArgumentTypeError('Resolution must be at least 1!')
     
-    if args.field == "temperature":
-        window = PyQtTemperature(args.data, resolution=args.resolution)
-    elif args.field == "conductivity":
-        window = PyQtConductivity(data, resolution=args.resolution)
-    elif args.field == "anomaly":
-        window = PyQtAnomaly(data, resolution=args.resolution)
-    elif args.field == "expansivity":
-        window = PyQtExpansivity(data, resolution=args.resolution)
-    elif args.field == "velocity":
-        window = PyQtVelocity(data, resolution=args.resolution)
-    else:
-        raise argparse.ArgumentTypeError('Field has to be temperature, conductivity, anomaly, expansivity, or velocity!')
-    # window.load_camera(args.camera)
+    window = PyQtScalar(args.data, resolution=args.resolution)
+    # elif args.field == "conductivity":
+    #     window = PyQtConductivity(data, resolution=args.resolution)
+    # elif args.field == "anomaly":
+    #     window = PyQtAnomaly(data, resolution=args.resolution)
+    # elif args.field == "expansivity":
+    #     window = PyQtExpansivity(data, resolution=args.resolution)
+    # elif args.field == "velocity":
+    #     window = PyQtVelocity(data, resolution=args.resolution)
+    # else:
+    #     raise argparse.ArgumentTypeError('Field has to be temperature, conductivity, anomaly, expansivity, or velocity!')
+    # # window.load_camera(args.camera)
     window.run()
     sys.exit(app.exec_())

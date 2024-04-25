@@ -105,8 +105,16 @@ class UiBase:
         self.log = QTextEdit()
         self.log.setReadOnly(True)
 
-        self.l_field = MyQList(['temperature', 'anomaly'])
-        self.r_field = MyQList(['temperature', 'anomaly'])
+        attr_list = [
+            'temperature', 
+            'temperature anomaly', 
+            'thermal conductivity', 
+            'thermal expansivity',
+            'spin transition-induced density anomaly'
+        ]
+
+        self.l_field = MyQList(attr_list)
+        self.r_field = MyQList(attr_list)
         
 
         # We are now going to position our widgets inside our
@@ -161,7 +169,7 @@ class UiBase:
 
 class PyQtBase(QMainWindow):
 
-    def __init__(self, output, verbose=True):
+    def __init__(self, output='mantle', verbose=True):
         super().__init__()
         self.ui = None
 
@@ -189,6 +197,9 @@ class PyQtBase(QMainWindow):
         self.ui.q_clipX.set_callback(self.clipX_callback)
         self.ui.q_clipY.set_callback(self.clipY_callback)
 
+        self.ui.l_field.fields_list.currentRowChanged.connect(self.field_l_callback)
+        self.ui.r_field.fields_list.currentRowChanged.connect(self.field_r_callback)
+
         # self.iren.AddObserver("TimerEvent", sync_cameras)
         # timer_id = interactor.CreateRepeatingTimer(10) 
 
@@ -215,10 +226,11 @@ class PyQtBase(QMainWindow):
     def start_callback(self):
         self.time_idx = 0
         max_time_idx = len(self.voxelizer.data_list) - 1
-        time_interval_ms = 1000  # Time interval in milliseconds
+        time_interval_ms = 5000000  # Time interval in milliseconds
 
         # Define a function to update the scene with a sphere of increasing radius
         def update_scene(obj, event):
+            print(self.time_idx)
             if self.time_idx < max_time_idx:
                 # Create a sphere source
                 self.time_idx = self.time_idx + 1
@@ -227,9 +239,21 @@ class PyQtBase(QMainWindow):
         
         # Set up the timer to trigger updates at regular intervals
         self.iren.AddObserver('TimerEvent', update_scene)
-        timer_id = self.iren.CreateRepeatingTimer(time_interval_ms)  
+        timer_id = self.iren.CreateRepeatingTimer(time_interval_ms)
 
-    def clipX_callback(self, val):
+    def field_l_callback(self, idx):
+        self.attr_l = self.ui.l_field.fields_list.currentItem().text()
+        self.tf_l.Update(self.attr_l)
+        self.update_clipper()
+        self.Update()
+    
+    def field_r_callback(self, idx):
+        self.attr_r = self.ui.r_field.fields_list.currentItem().text()
+        self.tf_r.Update(self.attr_r)
+        self.update_clipper()
+        self.Update()
+
+    def clipX_callback(self):
         self.clipX = self.ui.q_clipX.Update()
         self.update_clipper()
         self.ui.log.insertPlainText('clipTheta1 set to {}\n'.format(self.clipX))

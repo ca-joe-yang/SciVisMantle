@@ -25,7 +25,13 @@ class Voxelizer:
         self.resolution = resolution
         self.data_list = data_list
 
-        self.attr_list = ['temperature', 'temperature anomaly']
+        self.attr_list = [
+            'temperature', 
+            'temperature anomaly', 
+            'thermal conductivity', 
+            'thermal expansivity',
+            'spin transition-induced density anomaly'
+        ]
 
         self.X = np.linspace(-self.rmax+eps, self.rmax-eps, resolution)
         self.Y = np.linspace(-self.rmax+eps, self.rmax-eps, resolution)
