@@ -2,6 +2,12 @@ import vtk
 from .cmap import TransferFunction
 from .scalar import PyQtScalar
 
+class FieldTemperature():
+    
+    def __init__(self, data_list, resolution):
+
+        pass
+
 class PyQtTemperature(PyQtScalar):
 
     def __init__(self, 

@@ -1,7 +1,8 @@
 from PyQt5.QtWidgets import \
     QWidget, QMainWindow, QGridLayout, \
     QPushButton, QTextEdit, QColorDialog, \
-    QSlider, QLineEdit, QLabel
+    QSlider, QLineEdit, QLabel, \
+    QListWidget, QListWidgetItem, QScrollBar
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt
 
@@ -12,7 +13,7 @@ import sys
 from .vtk_helper import vtk_camera
 from .axes import Axes
 
-from .utils import slider_setup
+from .utils import GetViewRight
 
 class MyQTextEdit:
 
@@ -28,9 +29,9 @@ class MyQTextEdit:
         self.button = QPushButton()
         self.button.setText('Update')
 
-        gridlayout.addWidget(self.label, col_idx, 1, 1, 1)
-        gridlayout.addWidget(self.input, col_idx, 2, 1, 1)
-        gridlayout.addWidget(self.button, col_idx, 3, 1, 1)
+        gridlayout.addWidget(self.label, col_idx, 0, 1, 1)
+        gridlayout.addWidget(self.input, col_idx, 1, 1, 1)
+        gridlayout.addWidget(self.button, col_idx, 2, 1, 1)
 
     def set_callback(self, callback):
         self.button.clicked.connect(callback)
@@ -38,6 +39,31 @@ class MyQTextEdit:
     def Update(self):
         self.val = int(self.input.text())
         return self.val
+
+class MyQList:
+
+    def __init__(self, fields):
+        self.fields_list = QListWidget()
+        for i, f in enumerate(fields):
+            item = QListWidgetItem(f)
+            self.fields_list.addItem(item)
+            if i == 0:
+                # item.setSelected(True)
+                self.fields_list.setCurrentItem(item)
+
+        # self.scroll_bar = QScrollBar()
+        
+        # self.fields_list.setVerticalScrollBar(self.scroll_bar)
+        # self.scroll_bar.setValue(0)
+
+        # Get vertical scrollbar of QListWidget
+        self.scrollbar = self.fields_list.verticalScrollBar()
+
+        # Set scrollbar value to the calculated value
+        self.scrollbar.setValue(0)
+
+        # self.label = QLabel()
+ 
 
 class UiBase: 
 
@@ -59,6 +85,8 @@ class UiBase:
         # Push buttons
         self.push_screenshot = QPushButton()
         self.push_screenshot.setText('Save screenshot')
+        self.push_reset = QPushButton()
+        self.push_reset.setText('Reset camera')
         self.push_camera = QPushButton()
         self.push_camera.setText('Save camera info')
         self.push_start = QPushButton()
@@ -76,16 +104,10 @@ class UiBase:
         self.camera_info.setHtml("<div style='font-weight: bold'>Camera settings</div>")
         self.log = QTextEdit()
         self.log.setReadOnly(True)
-        
-        # Sliders    - May want to consider clipping based on phi and delta instead of x, y, z
-        # self.slider_clipX = QSlider()
-        # self.input_clipY = QLineEdit()
 
-        # self.slider_clipZ = QLineEdit()
-        # Temp values for now.
-        # slider_setup(self.slider_clipX, 0, [0,180], 1)
-        # slider_setup(self.slider_clipY, 0, [180,360], 1)
-        # slider_setup(self.slider_clipZ, -6400, [-6400,6400], 4)
+        self.l_field = MyQList(['temperature', 'anomaly'])
+        self.r_field = MyQList(['temperature', 'anomaly'])
+        
 
         # We are now going to position our widgets inside our
         # grid layout. The top left corner is (0,0)
@@ -110,11 +132,14 @@ class UiBase:
 
         self.gridlayout.addWidget(self.push_screenshot, 0, 4, 1, 1)
         self.gridlayout.addWidget(self.push_start, 1, 4, 1, 1)
-        self.gridlayout.addWidget(self.push_camera, 2, 4, 1, 1)
-        self.gridlayout.addWidget(self.camera_info, 3, 4, 1, 1)
-        self.gridlayout.addWidget(self.log, 4, 4, 1, 2)
+        self.gridlayout.addWidget(self.push_reset, 2, 4, 1, 1)
+        self.gridlayout.addWidget(self.push_camera, 3, 4, 1, 1)
+        self.gridlayout.addWidget(self.camera_info, 4, 4, 1, 1)
+        self.gridlayout.addWidget(self.log, 5, 4, 1, 1)
         self.gridlayout.addWidget(self.push_quit, 6, 4, 1, 1)
-
+        
+        self.gridlayout.addWidget(self.l_field.fields_list, 7, 0, 1, 2)
+        self.gridlayout.addWidget(self.r_field.fields_list, 7, 2, 1, 2)
         
         # self.gridlayout.addWidget(self.push_toggle3, 9, 1, 1, 1)
 
@@ -125,8 +150,8 @@ class UiBase:
 
         # self.slider_clipX.setValue(int(45))
         # self.input_clipY.setText(str(window.clipY))
-        self.q_clipX = MyQTextEdit('Clip X', window.clipX, self.gridlayout, 7)
-        self.q_clipY = MyQTextEdit('Clip Y', window.clipY, self.gridlayout, 8)
+        self.q_clipX = MyQTextEdit('Clip X', window.clipX, self.gridlayout, 8)
+        self.q_clipY = MyQTextEdit('Clip Y', window.clipY, self.gridlayout, 9)
         # self.ui.slider_clipZ.setValue(int(self.slider_clipZ))
 
         window.setCentralWidget(self.centralWidget)
@@ -159,9 +184,13 @@ class PyQtBase(QMainWindow):
         self.ui.push_camera.clicked.connect(self.camera_callback)
         self.ui.push_quit.clicked.connect(self.quit_callback)
         self.ui.push_start.clicked.connect(self.start_callback)
+        self.ui.push_reset.clicked.connect(self.reset_camera)
 
         self.ui.q_clipX.set_callback(self.clipX_callback)
         self.ui.q_clipY.set_callback(self.clipY_callback)
+
+        # self.iren.AddObserver("TimerEvent", sync_cameras)
+        # timer_id = interactor.CreateRepeatingTimer(10) 
 
     def run(self):
         self.show()
@@ -175,10 +204,18 @@ class PyQtBase(QMainWindow):
     def camera_callback(self):
         self._print_camera_settings()
 
+    def reset_camera(self):
+        camera = self.ren.GetActiveCamera()
+        camera.SetPosition(self.radius, self.radius, 6*self.radius)  # Example position
+        camera.SetFocalPoint(self.radius, self.radius, self.radius)  # Example focal point
+        camera.SetViewUp(0, 1, 0)  # Example view up vector
+        self.ren.SetActiveCamera(camera)
+        self.Update()
+
     def start_callback(self):
         self.time_idx = 0
-        max_time_idx = len(self.data) - 1
-        time_interval_ms = 100  # Time interval in milliseconds
+        max_time_idx = len(self.voxelizer.data_list) - 1
+        time_interval_ms = 1000  # Time interval in milliseconds
 
         # Define a function to update the scene with a sphere of increasing radius
         def update_scene(obj, event):
@@ -190,7 +227,7 @@ class PyQtBase(QMainWindow):
         
         # Set up the timer to trigger updates at regular intervals
         self.iren.AddObserver('TimerEvent', update_scene)
-        timer_id = self.iren.CreateRepeatingTimer(time_interval_ms)        
+        timer_id = self.iren.CreateRepeatingTimer(time_interval_ms)  
 
     def clipX_callback(self, val):
         self.clipX = self.ui.q_clipX.Update()
@@ -240,7 +277,16 @@ class PyQtBase(QMainWindow):
         camera = self.ren.GetActiveCamera()
         text_window = self.ui.camera_info
         log = self.ui.log
-        text_window.setHtml("<div style='font-weight:bold'>Camera settings:</div><p><ul><li><div style='font-weight:bold'>Position:</div> {0}</li><li><div style='font-weight:bold'>Focal point:</div> {1}</li><li><div style='font-weight:bold'>Up vector:</div> {2}</li><li><div style='font-weight:bold'>Clipping range:</div> {3}</li></ul>".format(camera.GetPosition(), camera.GetFocalPoint(),camera.GetViewUp(),camera.GetClippingRange()))
+        log_html = [
+            f"<li><div style='font-weight:bold'>Position:</div> {camera.GetPosition()}</li>",
+            f"<li><div style='font-weight:bold'>Focal point:</div> {camera.GetFocalPoint()}</li>",
+            f"<li><div style='font-weight:bold'>View up:</div> {camera.GetViewUp()}</li>",
+            f"<li><div style='font-weight:bold'>View right:</div> {GetViewRight(camera)}</li>",
+            f"<li><div style='font-weight:bold'>Clipping range:</div> {camera.GetClippingRange()}</li>",
+        ]
+        log_html = ''.join(log_html)
+        text_window.setHtml(
+            f"<div style='font-weight:bold'>Camera settings:</div><p><ul>{log_html}</ul>")
         log.insertPlainText('Updated camera info\n')
 
         camera_filename = self.output + '_camera.json'
@@ -258,6 +304,3 @@ class PyQtBase(QMainWindow):
         # This artificially causes a timestamp update which causes that update.
         # https://discourse.vtk.org/t/correct-way-to-update-a-vtkimagedata-and-refresh-the-render-window-renderwindow-render-not-working/6359/13
         self.ui.vtkWidget.GetRenderWindow().GetInteractor().ProcessEvents()
-
-
-
