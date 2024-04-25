@@ -182,9 +182,12 @@ class PyQtVelocity(PyQtBase):
         maxScalarValue = scalarRange[1]
 
         ctf = vtk.vtkColorTransferFunction()
-        ctf.AddRGBPoint(minScalarValue, 0.001462, 0.000466, 0.013866)
-        ctf.AddRGBPoint((minScalarValue + maxScalarValue) / 2, 0.365953, 0.146965, 0.472712)
-        ctf.AddRGBPoint(maxScalarValue, 0.988362, 0.998364, 0.644924)
+        # ctf.AddRGBPoint(minScalarValue, 0.001462, 0.000466, 0.013866)
+        # ctf.AddRGBPoint((minScalarValue + maxScalarValue) / 2, 0.365953, 0.146965, 0.472712)
+        # ctf.AddRGBPoint(maxScalarValue, 0.988362, 0.998364, 0.644924)
+        ctf.AddRGBPoint(minScalarValue, 0, 0, 1)
+        # ctf.AddRGBPoint((minScalarValue + maxScalarValue) / 2, 0, 1, 0)
+        ctf.AddRGBPoint(maxScalarValue, 1, 0, 0)
 
         # Create glyphs to visualize the vector field
         # Create arrow source for glyphs
