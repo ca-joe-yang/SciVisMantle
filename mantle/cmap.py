@@ -50,7 +50,7 @@ tf_factory = {
         ],
         'otf_tuples': [
             [0, 0.0],
-            [300, 1],
+            [300, 0.1],
         ],
         'title': 'Temperature'
     },

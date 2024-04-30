@@ -22,8 +22,8 @@ python3 main.py
 
 ## Example
 ```bash
-python3 main.py -f velocity -r 100 -v ss
-python3 main.py -f velocity -r 20 -v vv
-python3 main.py -f velocity -r 20 -v sv
+python3 main.py -r 100 -v ss
+python3 main.py -r 20 -v vv
+python3 main.py -r 20 -v sv
 ```
 
