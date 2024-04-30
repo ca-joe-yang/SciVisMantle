@@ -7,128 +7,110 @@ from .cmap import TransferFunction
 from vtk.util import numpy_support
 import numpy as np
 from .utils import voxelize, ScalarField
+from .data import Voxelizer, load_data
+from .arc import ClipBorders
+
+class Glyph:
+
+    def __init__(self, inputs, color_mode, tf):
+        # Filter out points with scalar value equal to -10000
+        self.threshold = vtk.vtkThreshold()
+        self.threshold.SetInputData(inputs)
+        self.threshold.SetLowerThreshold(-9999)  # Set threshold to filter out -10000
+
+        scalarRange = self.threshold.GetOutput().GetScalarRange()
+        minScalarValue = scalarRange[0]
+        maxScalarValue = scalarRange[1]
+
+        self.glyph = vtk.vtkGlyph3D()
+        self.arrow_source = vtk.vtkArrowSource()
+        self.arrow_source.SetTipResolution(1)  # Adjust the tip resolution
+        self.arrow_source.SetShaftResolution(1)  # Adjust the shaft resolution
+        # Set the arrow source as the glyph source
+        self.glyph.SetSourceConnection(self.arrow_source.GetOutputPort())
+        self.glyph.SetInputConnection(self.threshold.GetOutputPort())
+        self.glyph.SetScaleFactor(1e9)  # Adjust the scaling factor as needed
+        if color_mode == "magnitude":
+            self.glyph.SetColorModeToColorByScale()
+        else:
+            self.glyph.SetColorModeToColorByVector()
+        # self.glyph.SetResolution(32)  # Adjust the resolution as needed
+
+        self.mapper = vtk.vtkPolyDataMapper()
+        self.mapper.SetInputConnection(self.glyph.GetOutputPort())
+        self.mapper.SetLookupTable(tf.ctf)
+        self.mapper.SetScalarRange(minScalarValue, maxScalarValue)
+
+        self.actor = vtk.vtkActor()
+        self.actor.SetMapper(self.mapper)
+
+        # Create a transform to shift the actor's position
+        transform = vtk.vtkTransform()
+        transform.Translate(1, 1, 1)  # Shift by 20 units in the X direction
+
+        # Apply the transform to the actor
+        self.actor.SetUserTransform(transform)
 
 class PyQtVelocity(PyQtBase):
 
     def __init__(self, 
-        data,
-        output='velocity',
-        resolution = 100
+        data_dir,
+        resolution = 100,
+        color_mode = "magnitude"
     ):
-        super().__init__(output)
+        super().__init__(resolution)
         self.ui = UiBase()
         self.ui.setupUi(self)
 
-        # temperature = np.array(data[0].temperature)
-        # Errmmm.. Needs change
-        self.tf = TransferFunction(
-            ctf_tuples=[
-                [0, 0.0, 1.0, 0.0],
-                [1801, 0.0, 0.0, 1.0],
-                [2350, 1.0, 1.0, 1.0],
-                [2700, 1.0, 0.0, 0.0],
-                [2801, 1.0, 1.0, 0.0]
-            ],
-            otf_tuples=[
-                [0, 0.0],
-                [300, 0.1],
-            ],
-            title="Velocity"
-        ) 
-
+        self.color_mode = color_mode
         self.resolution = resolution
-        self.data = data[0]
+        self.radius = int(self.resolution/2)
+        self.center = (self.radius, self.radius, self.radius)
+        self.borders = ClipBorders(self.clipX, self.clipY, self.radius)
 
-        self.vx_image_data = voxelize(self.data, 'vx', resolution=self.resolution, clip_theta1=90)
-        self.vy_image_data = voxelize(self.data, 'vy', resolution=self.resolution, clip_theta1=90)
-        self.vz_image_data = voxelize(self.data, 'vz', resolution=self.resolution, clip_theta1=90)
+        self.voxelizer = Voxelizer(data_dir, self.resolution)
+        self.voxelizer.check_all()
 
+        self.vx_image_data = vtk.vtkImageData()
+        self.vx_image_data.SetDimensions(self.resolution, self.resolution, self.resolution)
 
-        vector_field = vtk.vtkImageData()
-        vector_field.DeepCopy(self.vx_image_data) 
-        vector_field.GetPointData().SetScalars(self.vx_image_data.GetPointData().GetScalars())
-        vector_field.GetPointData().AddArray(self.vy_image_data.GetPointData().GetScalars())
-        vector_field.GetPointData().AddArray(self.vz_image_data.GetPointData().GetScalars())
+        self.vy_image_data = vtk.vtkImageData()
+        self.vy_image_data.SetDimensions(self.resolution, self.resolution, self.resolution)
 
-        def print_vector_field(vector_field):
-            # Get dimensions of the vector field
-            dims = vector_field.GetDimensions()
+        self.vz_image_data = vtk.vtkImageData()
+        self.vz_image_data.SetDimensions(self.resolution, self.resolution, self.resolution)
 
-            # Get scalar values
-            scalar_array = vector_field.GetPointData().GetScalars()
+        self.vector_field = vtk.vtkImageData()
+        # self.vector_field.SetDimensions(self.resolution, self.resolution, self.resolution)
+        # # self.vector_field.GetPointData().SetScalars(self.vx_image_data.GetPointData().GetScalars())
+        # # self.vector_field.GetPointData().AddArray(self.vy_image_data.GetPointData().GetScalars())
+        # # self.vector_field.GetPointData().AddArray(self.vz_image_data.GetPointData().GetScalars())
 
-            # Loop through points and print scalar values
-            for k in range(dims[2]):
-                for j in range(dims[1]):
-                    for i in range(dims[0]):
-                        index = i + dims[0] * (j + dims[1] * k)
-                        scalar_value = scalar_array.GetValue(index)
-                        if scalar_value != -10000:
-                            print(f"Point ({i}, {j}, {k}): Scalar Value = {scalar_value}")
+        self.num_points = self.vx_image_data.GetNumberOfPoints()
 
-        # vector field super scuff rn like only 3 dimensions with scalars??? 
-        # nahhhh that shit needs to be 3 dimensions with vectors of 3 dimensions
+        self.vectors = vtk.vtkFloatArray()
+        self.vectors.SetNumberOfComponents(3)
+        self.vectors.SetNumberOfTuples(self.num_points)
 
-
-        num_points = self.vx_image_data.GetNumberOfPoints()
-
-        vectors = vtk.vtkFloatArray()
-        vectors.SetNumberOfComponents(3)
-        vectors.SetNumberOfTuples(num_points)
-
-        for i in range(num_points):
-            x = self.vx_image_data.GetPointData().GetScalars().GetValue(i)
-            y = self.vy_image_data.GetPointData().GetScalars().GetValue(i)
-            z = self.vz_image_data.GetPointData().GetScalars().GetValue(i)
-            vectors.SetTuple3(i, x, y, z)
-
-        vector_field.GetPointData().SetVectors(vectors)
-
-        # Filter out points with scalar value equal to -10000
-        threshold = vtk.vtkThreshold()
-        threshold.SetInputData(vector_field)
-        threshold.SetLowerThreshold(-9999)  # Set threshold to filter out -10000
-        threshold.Update()
+        self.tf = TransferFunction('magnitude', 'right')
         
-        # Create glyphs to visualize the vector field
-        # Create arrow source for glyphs
-        arrow_source = vtk.vtkArrowSource()
-
-        glyph = vtk.vtkGlyph3D()
-        # Set the arrow source as the glyph source
-        glyph.SetSourceConnection(arrow_source.GetOutputPort())
-        glyph.SetInputConnection(threshold.GetOutputPort())
-        glyph.SetVectorModeToUseVector()
-        # glyph.SetScaleModeToScaleByScalar()
-        # glyph.OrientOn()
-        glyph.SetColorModeToColorByVector()
-        glyph.SetScaleFactor(1e9)  # Adjust the scaling factor as needed
-        # glyph.SetScaleFactor(1.5e-6)
-
-
-
-
-        # Create mapper and actor for glyphs
-        glyph_mapper = vtk.vtkPolyDataMapper()
-        glyph_mapper.SetInputConnection(glyph.GetOutputPort())
-
-        glyph_actor = vtk.vtkActor()
-        glyph_actor.SetMapper(glyph_mapper)
-
         
 
+        # self.field = FieldVelocity(resolution, color_mode)
         # Create the Renderer
         self.ren = vtk.vtkRenderer()
-        # self.ren.AddVolume(self.field_temperature.volume)
-        self.ren.AddActor(glyph_actor)
-        # self.ren.AddActor(self.field_temperature.actor)
-        # self.ren.AddActor(isosurface.actor)
-        # self.ren.AddActor(self.axes.actor)
+        self.update_clipper()
+        self.glyph3d = Glyph(self.vector_field, self.color_mode, self.tf)
+        self.ren.AddActor(self.glyph3d.actor)
+        self.ren.AddActor(self.sphere.actor)
+        for actor in self.borders.actors:
+            self.ren.AddActor(actor)
+        for location in self.locations:
+            self.ren.AddActor(location.actor)
         self.ren.AddActor2D(self.tf.bar.get())
         self.ren.ResetCamera()
         self.ren.GradientBackgroundOn()  # Set gradient for background
         self.ren.SetBackground(0.0, 0.0, 0.0)  # Set background to silver
-        # self.ren.GetActiveCamera().SetViewUp(1.0, -1.0, -1.0)
 
         self.ui.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
         self.iren = self.ui.vtkWidget.GetRenderWindow().GetInteractor()
@@ -137,11 +119,47 @@ class PyQtVelocity(PyQtBase):
         self.set_callback()
 
     def update_clipper(self):
-        self.vtk_image_data = voxelize(self.data, 'temperature', resolution=self.resolution, 
-                                       clip_theta1=self.clipX, clip_theta2=self.clipY)
+        self.voxelizer.build_clip_mask(self.clipX, self.clipY)
+        self.borders.Update(self.clipX, self.clipY)
 
-        self.ren.RemoveVolume(self.field_temperature.volume)
+        # self.ren.AddActor2D(self.tf_l.bar.get())
+        # self.ren.AddActor2D(self.tf_r.bar.get())
 
-        self.field_temperature = ScalarField(self.vtk_image_data, self.tf)
+        self.UpdateData()
 
-        self.ren.AddVolume(self.field_temperature.volume)
+    def UpdateData(self):
+        camera = None
+        vtk_data_vx = self.voxelizer.Update(
+            self.time_idx, 'vx',
+            camera,
+        )
+        self.vx_image_data.GetPointData().SetScalars(vtk_data_vx)
+
+        vtk_data_vy = self.voxelizer.Update(
+            self.time_idx, 'vy',
+            camera,
+        )
+        self.vy_image_data.GetPointData().SetScalars(vtk_data_vy)
+
+        vtk_data_vz = self.voxelizer.Update(
+            self.time_idx, 'vz',
+            camera,
+        )
+        self.vz_image_data.GetPointData().SetScalars(vtk_data_vz)
+
+        # TODO:
+        # All of this below is just repeated code from before. 
+        # It's late and I don't want to make a better solution for now right before
+        # presentations, so here we go.
+        self.vector_field.DeepCopy(self.vx_image_data) 
+        self.vector_field.GetPointData().SetScalars(self.vx_image_data.GetPointData().GetScalars())
+        self.vector_field.GetPointData().AddArray(self.vy_image_data.GetPointData().GetScalars())
+        self.vector_field.GetPointData().AddArray(self.vz_image_data.GetPointData().GetScalars())
+
+        for i in range(self.num_points):
+            x = self.vx_image_data.GetPointData().GetScalars().GetValue(i)
+            y = self.vy_image_data.GetPointData().GetScalars().GetValue(i)
+            z = self.vz_image_data.GetPointData().GetScalars().GetValue(i)
+            self.vectors.SetTuple3(i, x, y, z)
+
+        self.vector_field.GetPointData().SetVectors(self.vectors)

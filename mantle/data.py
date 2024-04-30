@@ -30,7 +30,10 @@ class Voxelizer:
             'temperature anomaly', 
             'thermal conductivity', 
             'thermal expansivity',
-            'spin transition-induced density anomaly'
+            'spin transition-induced density anomaly',
+            'vx',
+            'vy',
+            'vz'
         ]
 
         self.X = np.linspace(-self.rmax+eps, self.rmax-eps, resolution)
@@ -78,33 +81,33 @@ class Voxelizer:
                 if not os.path.exists(filename):
                     self.preprocess(time_idx, attr)
     
-    def Update(self, time_idx, attr, camera=None, mode='left'):
+    def Update(self, time_idx, attr, camera=None, mode=None):
         filename = os.path.join(self.data_dir, f'voxelize-{attr.replace(" ", "_")}-{time_idx+1:02d}-{self.resolution}.npy')
         data = np.load(filename).ravel()
 
-        assert mode in ['left', 'right']
-        p = np.array(camera.GetPosition())
-        f = np.array(camera.GetFocalPoint())
-        v = np.array(camera.GetViewUp())
+        assert mode in ['left', 'right', None]
+        if camera is not None:
+            p = np.array(camera.GetPosition())
+            f = np.array(camera.GetFocalPoint())
+            v = np.array(camera.GetViewUp())
 
-        a = np.cross(f - p, v)[np.newaxis, :]
-        b = np.stack([
-            self.resolution_meshgrid[2] - p[0],
-            self.resolution_meshgrid[0] - p[1],
-            self.resolution_meshgrid[1] - p[2]
-        ], -1)
-        # # print(b)
-        b = b.reshape(-1, 3)
+            a = np.cross(f - p, v)[np.newaxis, :]
+            b = np.stack([
+                self.resolution_meshgrid[2] - p[0],
+                self.resolution_meshgrid[0] - p[1],
+                self.resolution_meshgrid[1] - p[2]
+            ], -1)
+            # # print(b)
+            b = b.reshape(-1, 3)
 
-        M = (b @ a.T).ravel()
-        if mode == 'left':
-            M = M >= 0
-        else:
-            M = M < 0
+            M = (b @ a.T).ravel()
+            if mode == 'left':
+                data[M >= 0] = -10000
+            elif mode == 'right':
+                data[M < 0] = -10000
         
         data[self.cut_M.ravel()] = -10000
-        data[M] = -10000
-        
+               
         vtk_data = numpy_support.numpy_to_vtk(
             num_array=data, 
             deep=True, array_type=vtk.VTK_FLOAT)

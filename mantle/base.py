@@ -8,12 +8,57 @@ from PyQt5.QtCore import Qt
 
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 import vtk
+import time
 
 import sys
 from .vtk_helper import vtk_camera
 from .axes import Axes
 
-from .utils import GetViewRight
+from .utils import GetViewRight, lonlatr2xyz
+
+class MySphere:
+
+    def __init__(self, r):
+        # Create a sphere geometry
+        self.source = vtk.vtkSphereSource()
+        self.source.SetRadius(r)  # Set the radius of the sphere
+
+        self.source.SetThetaResolution(100)  # Set the number of divisions around the equator
+        self.source.SetPhiResolution(100)  # Set the number of divisions along the meridians
+
+
+        # Create a mapper
+        self.mapper = vtk.vtkPolyDataMapper()
+        self.mapper.SetInputConnection(self.source.GetOutputPort())  # Connect the sphere source to the mapper
+
+        # Create an actor
+        self.actor = vtk.vtkActor()
+        self.actor.SetMapper(self.mapper)  # Set the mapper for the actor
+        self.actor.GetProperty().SetColor(1.0, 1.0, 1.0)  # Set color to green
+        self.actor.GetProperty().SetOpacity(0.2)  # Set opacity to 0.5
+
+        # Create a transform to shift the actor's position
+        transform = vtk.vtkTransform()
+        transform.Translate(r, r, r)  # Shift by 20 units in the X direction
+
+        # Apply the transform to the actor
+        self.actor.SetUserTransform(transform)
+
+
+# Create a renderer
+
+class MyLabel2D:
+
+    def __init__(self, text, position):
+        # Create a vtkTextActor for the label
+        self.actor = vtk.vtkBillboardTextActor3D()
+        # self.actor.SetTextScaleModeToNone()  # Set text scale mode to none (disable scaling)
+        self.actor.SetInput(text)  # Set the text label
+        self.actor.GetTextProperty().SetColor(1.0, 1.0, 1.0)  # Set text color to red
+        self.actor.GetTextProperty().SetFontSize(12)  # Set font size
+
+        # Set the position of the text actor (position it near the 3D point)
+        self.actor.SetPosition(*position)  # Adjust the position as needed
 
 class MyQTextEdit:
 
@@ -110,7 +155,8 @@ class UiBase:
             'temperature anomaly', 
             'thermal conductivity', 
             'thermal expansivity',
-            'spin transition-induced density anomaly'
+            'spin transition-induced density anomaly',
+            'velocity magnitude',
         ]
 
         self.l_field = MyQList(attr_list)
@@ -169,23 +215,37 @@ class UiBase:
 
 class PyQtBase(QMainWindow):
 
-    def __init__(self, output='mantle', verbose=True):
+    def __init__(self, resolution=100, verbose=True):
         super().__init__()
         self.ui = None
 
         self.frame_counter = 0
         self.verbose = verbose
-        self.output = output
+        self.output = 'mantle'
 
         self.colors = vtk.vtkNamedColors()
 
         self.axes = Axes()
         self.show_axes = True
 
+        self.locations = []
+        r = resolution/2
+        for text, lonlatr in [
+            ('North Pole', (0, 90, r)),
+            ('South Pole', (0, -90, r))
+        ]:
+            x, y, z = lonlatr2xyz(*lonlatr)
+            location = MyLabel2D(text, (x+r, y+r, z+r))
+            self.locations.append(location)
+
+        self.sphere = MySphere(r)
+
         # Use constants instead of explicit definition
         self.clipX = 45
         self.clipY = 315
         self.clipZ = 0
+
+        self.time_idx = 0
 
     def set_callback(self):
         self.ui.push_screenshot.clicked.connect(self.screenshot_callback)
@@ -226,7 +286,7 @@ class PyQtBase(QMainWindow):
     def start_callback(self):
         self.time_idx = 0
         max_time_idx = len(self.voxelizer.data_list) - 1
-        time_interval_ms = 5000000  # Time interval in milliseconds
+        time_interval_sec = 0.5  # Time interval in milliseconds
 
         # Define a function to update the scene with a sphere of increasing radius
         def update_scene(obj, event):
@@ -236,10 +296,11 @@ class PyQtBase(QMainWindow):
                 self.time_idx = self.time_idx + 1
                 self.update_clipper()
                 self.Update()
+                time.sleep(time_interval_sec)
         
         # Set up the timer to trigger updates at regular intervals
         self.iren.AddObserver('TimerEvent', update_scene)
-        timer_id = self.iren.CreateRepeatingTimer(time_interval_ms)
+        timer_id = self.iren.CreateRepeatingTimer(100)
 
     def field_l_callback(self, idx):
         self.attr_l = self.ui.l_field.fields_list.currentItem().text()

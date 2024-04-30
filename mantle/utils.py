@@ -152,40 +152,63 @@ class Voxelizer:
         # return self.vtk_image_data
 
 
-# def voxelize_all_sphere(nc_data, attr, resolution=200, eps=1e-12):
-#     rmax = int(nc_data.r[-1])
-#     image_data = np.zeros([resolution, resolution, resolution])
-#     data = np.array(nc_data[attr])
+def voxelize_all_sphere(nc_data, attr, resolution=200, eps=1e-12):
+    rmax = int(nc_data.r[-1])
+    image_data = np.zeros([resolution, resolution, resolution])
+    data = np.array(nc_data[attr])
 
-#     X = np.linspace(-rmax+eps, rmax-eps, resolution)
-#     Y = np.linspace(-rmax+eps, rmax-eps, resolution)
-#     Z = np.linspace(-rmax+eps, rmax-eps, resolution)
-#     meshgrid = np.meshgrid(X, Y, Z)
+    X = np.linspace(-rmax+eps, rmax-eps, resolution)
+    Y = np.linspace(-rmax+eps, rmax-eps, resolution)
+    Z = np.linspace(-rmax+eps, rmax-eps, resolution)
+    meshgrid = np.meshgrid(X, Y, Z)
 
-#     Lon, Lat, R = xyz2lonlatr(meshgrid[0], meshgrid[1], meshgrid[2])
+    Lon, Lat, R = xyz2lonlatr(meshgrid[0], meshgrid[1], meshgrid[2])
 
-#     lon_ids = np.searchsorted(nc_data.lon, Lon)
-#     lat_ids = len(nc_data.lat) - np.searchsorted(-nc_data.lat, Lat)
-#     r_ids = np.searchsorted(nc_data.r, R)
+    lon_ids = np.searchsorted(nc_data.lon, Lon)
+    lat_ids = len(nc_data.lat) - np.searchsorted(-nc_data.lat, Lat)
+    r_ids = np.searchsorted(nc_data.r, R)
     
-#     ids = np.stack([lat_ids, r_ids, lon_ids], -1)
+    ids = np.stack([lat_ids, r_ids, lon_ids], -1)
     
-#     mask_ball = ids[..., 1] < 201
+    mask_ball = ids[..., 1] < 201
 
-#     ids_flatten = ids[..., 0] * data.shape[1] * data.shape[2] + np.clip(ids[..., 1], a_min=0, a_max=200) * data.shape[1] + ids[..., 2]
-#     ids_flatten = ids_flatten.ravel()
+    ids_flatten = ids[..., 0] * data.shape[1] * data.shape[2] + np.clip(ids[..., 1], a_min=0, a_max=200) * data.shape[1] + ids[..., 2]
+    ids_flatten = ids_flatten.ravel()
     
-#     image_data = data.ravel()[ids_flatten]
-#     image_data[np.logical_not(mask_ball.ravel())] = -10000
+    image_data = data.ravel()[ids_flatten]
+    image_data[np.logical_not(mask_ball.ravel())] = -10000
 
-#     return image_data
+    return image_data
 
 
 def voxelize(
     nc_data, attr, resolution=200, eps=1e-12, 
     clip_theta1 = 45, clip_theta2 = 315
 ):
-    image_data = voxelize_all_sphere(nc_data, attr, resolution, eps)
+    rmax = int(nc_data.r[-1])
+    image_data = np.zeros([resolution, resolution, resolution])
+    data = np.array(nc_data[attr])
+
+    X = np.linspace(-rmax+eps, rmax-eps, resolution)
+    Y = np.linspace(-rmax+eps, rmax-eps, resolution)
+    Z = np.linspace(-rmax+eps, rmax-eps, resolution)
+    meshgrid = np.meshgrid(X, Y, Z)
+
+    Lon, Lat, R = xyz2lonlatr(meshgrid[0], meshgrid[1], meshgrid[2])
+
+    lon_ids = np.searchsorted(nc_data.lon, Lon)
+    lat_ids = len(nc_data.lat) - np.searchsorted(-nc_data.lat, Lat)
+    r_ids = np.searchsorted(nc_data.r, R)
+    
+    ids = np.stack([lat_ids, r_ids, lon_ids], -1)
+    
+    mask_ball = ids[..., 1] < 201
+
+    ids_flatten = ids[..., 0] * data.shape[1] * data.shape[2] + np.clip(ids[..., 1], a_min=0, a_max=200) * data.shape[1] + ids[..., 2]
+    ids_flatten = ids_flatten.ravel()
+    
+    image_data = data.ravel()[ids_flatten]
+    image_data[np.logical_not(mask_ball.ravel())] = -10000
     
     M1 = np.logical_and(ids[..., 2] < clip_theta2, ids[..., 2] > clip_theta1)
     M2 = np.logical_or(meshgrid[0] < 0, M1)
@@ -241,8 +264,11 @@ class ScalarField:
         self.property.SetInterpolationTypeToLinear()
 
         self.mapper = vtk.vtkSmartVolumeMapper()
-        self.mapper.SetInputData(data)
+        self.Update(data)
         self.mapper.SetBlendModeToComposite()
+
+        # self.mapper.SetSampleDistance(0.1)  # Adjust sample distance as needed
+        # self.mapper.SetInterpolationTypeToLinear()  # Enable linear interpolation
 
         self.volume = vtk.vtkVolume()
         self.volume.SetMapper(self.mapper)
